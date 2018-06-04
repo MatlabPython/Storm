@@ -45,7 +45,7 @@ public class IOTBridgeQualityBolt extends BaseBasicBolt {
         BaseZookeeper baseZookeeper = new BaseZookeeper();
         try {
             baseZookeeper.connectZookeeper(SystemConfig.get("ZK_LIST"));
-            nodeData = baseZookeeper.getData("/dynamic-config/ckquality/bridge");
+            nodeData = baseZookeeper.getData(SystemConfig.get("ZK_DYNAMIC_CONFIG_QUALITCK"));
             //kafka连接
             Properties proConf = new Properties();
             proConf.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, SystemConfig.get("KAFKA_BROKER_LIST"));
