@@ -1,7 +1,6 @@
 package com.gsafety.gas;
 
 import backtype.storm.Config;
-import backtype.storm.LocalCluster;
 import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.AuthorizationException;
@@ -9,10 +8,7 @@ import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.gsafety.storm.IOTKafkaSpout;
-import com.gsafety.storm.IOTProcessBolt;
 import com.gsafety.storm.SystemConfig;
-
 import java.util.Properties;
 
 /**
@@ -34,8 +30,8 @@ public class IOTGasTopology {
     properties.put("consumer.topic", SystemConfig.get("KAFKA_TOPICS_GAS"));
 
     TopologyBuilder topologyBuilder = new TopologyBuilder();
-    topologyBuilder.setSpout("IOTGasSpout", new IOTGasSpout(properties), 3);
-    topologyBuilder.setBolt("IOTGasBolt", new IOTGasBolt(), 3).fieldsGrouping("IOTGasSpout", new Fields("key"));
+    topologyBuilder.setSpout("IOTGasSpout", new com.gsafety.gas.IOTGasSpout(properties), 3);
+    topologyBuilder.setBolt("IOTGasBolt", new com.gsafety.gas.IOTGasBolt(), 3).fieldsGrouping("IOTGasSpout", new Fields("key"));
 
     StormTopology topology = topologyBuilder.createTopology();
     Config config = new Config();

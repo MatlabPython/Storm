@@ -11,7 +11,6 @@ import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Map;
@@ -22,8 +21,11 @@ import java.util.Properties;
  * Written on 17/8/31.
  */
 public class IOTDrainSpout implements IRichSpout {
+
   private SpoutOutputCollector spoutOutputCollector;
+
   private static final Logger LOG = LoggerFactory.getLogger(IOTDrainSpout.class);
+
   private Properties properties;
   /**
    * 消费者

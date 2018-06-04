@@ -1,7 +1,7 @@
 package com.gsafety.drain;
 
 import backtype.storm.Config;
-import backtype.storm.StormSubmitter;
+import backtype.storm.LocalCluster;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.AuthorizationException;
 import backtype.storm.generated.InvalidTopologyException;
@@ -10,7 +10,6 @@ import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import com.gsafety.gas.IOTGasSpout;
 import com.gsafety.storm.SystemConfig;
-
 import java.util.Properties;
 
 /**
@@ -22,7 +21,7 @@ public class IOTDrainTopology {
   public static void main(String[] args) throws InvalidTopologyException, AuthorizationException, AlreadyAliveException {
     Properties properties = new Properties();
     properties.put("bootstrap.servers", SystemConfig.get("KAFKA_BROKER_LIST"));
-    properties.put("group.id", "storm-kafka-drain");
+    properties.put("group.id", "storm-kafka-drain0");
     //properties.put("auto.offset.reset", "earliest");
     properties.put("enable.auto.commit", "true");
     properties.put("auto.commit.interval.ms", "1000");
@@ -37,11 +36,11 @@ public class IOTDrainTopology {
     StormTopology topology = topologyBuilder.createTopology();
     Config config = new Config();
 
-   /* LocalCluster localCluster = new LocalCluster();
-    localCluster.submitTopology("IOTGasStream", config, topology);*/
+    LocalCluster localCluster = new LocalCluster();
+    localCluster.submitTopology("OTStream-drain", config, topology);
 
-    config.setNumWorkers(1);
-    StormSubmitter.submitTopology("IOTStream-drain", config, topology);
+//    config.setNumWorkers(1);
+//    StormSubmitter.submitTopology("IOTStream-drain", config, topology);
 
   }
 }

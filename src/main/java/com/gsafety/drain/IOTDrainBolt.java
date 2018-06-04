@@ -39,7 +39,9 @@ public class IOTDrainBolt extends BaseBasicBolt {
     private Logger logger = LoggerFactory.getLogger(IOTDrainBolt.class);
 
     private Map<String, List<ThresholdValueCommon>> configMap = new ConcurrentHashMap<>();
+
     private Map<String, String> statusConfigMap = new ConcurrentHashMap<>();//公共支持设备状态用
+
     private JedisCluster cluster;
 
     private Histogram histogram;
@@ -53,14 +55,12 @@ public class IOTDrainBolt extends BaseBasicBolt {
         cluster = JedisUtlis.getJedisCluster();
         //初始化zk连接,拉取动态配置
         pullDynamicConfig();
-
         //初始化Kafka
         Properties proConf = new Properties();
         proConf.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, SystemConfig.get("KAFKA_BROKER_LIST"));
         proConf.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         proConf.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
         producer = new KafkaProducer<>(proConf);
-
         this.histogram = LatencyMetrics.latencyHistogram();
     }
 
@@ -121,8 +121,8 @@ public class IOTDrainBolt extends BaseBasicBolt {
 
     @Override
     public void execute(Tuple tuple, BasicOutputCollector basicOutputCollector) {
-
         String sensorId = tuple.getStringByField("key");
+        logger.info(sensorId);
         byte[] sensorDataBytes = (byte[]) tuple.getValueByField("value");
         SensorData sensorData = AvroUtil.deserialize(sensorDataBytes);
         String topic = tuple.getStringByField("topic");
@@ -136,7 +136,7 @@ public class IOTDrainBolt extends BaseBasicBolt {
             histogram.update(latency);
             handleAlarm(sensorId, sensorDataEntries, sensorData);//阈值判断
             writeBackToKafka(sensorData, topic, sensorId, sensorDataEntries);//写回Kafka
-        }else{
+        } else {
             if ("3".equals(status)) {//正常全部写入
                 List<SensorDataEntry> sensorDataEntries = handleBurr(sensorId, sensorData);//毛刺处理
                 sendToRedis(sensorId, sensorDataEntries);//redis存最新一千条
@@ -150,8 +150,6 @@ public class IOTDrainBolt extends BaseBasicBolt {
                 sendToRedis(sensorId, sensorDataEntries);//redis存最新一千条
             }
         }
-
-
 
 
     }
@@ -198,14 +196,27 @@ public class IOTDrainBolt extends BaseBasicBolt {
                     break;
                 }
                 Float value = sensorDataEntry.getValues().get(0);
-                if (value < drainConfig.getAlarmFirstLevelUp() && value > drainConfig.getAlarmFirstLevelDown()) {
-                    sensorDataEntry.setLevel(1);
-                } else if ((value < drainConfig.getAlarmSecondLevelUp() && value > drainConfig.getAlarmSecondLevelDown())) {
-                    sensorDataEntry.setLevel(2);
-                } else if (value < drainConfig.getAlarmThirdLevelUp() && value > drainConfig.getAlarmThirdLevelDown()) {
-                    sensorDataEntry.setLevel(3);
+                //排水专项的反向值可能为空
+                if (drainConfig.getAlarmFirstLevelDown() == null || drainConfig.getAlarmSecondLevelDown() == null || drainConfig.getAlarmThirdLevelDown() == null) {
+                    if (value < drainConfig.getAlarmFirstLevelUp()) {
+                        sensorDataEntry.setLevel(1);
+                    } else if ((value < drainConfig.getAlarmSecondLevelUp())) {
+                        sensorDataEntry.setLevel(2);
+                    } else if (value < drainConfig.getAlarmThirdLevelUp()) {
+                        sensorDataEntry.setLevel(3);
+                    } else {
+                        sensorDataEntry.setLevel(0);
+                    }
                 } else {
-                    sensorDataEntry.setLevel(0);
+                    if (value < drainConfig.getAlarmFirstLevelUp() && value > drainConfig.getAlarmFirstLevelDown()) {
+                        sensorDataEntry.setLevel(1);
+                    } else if ((value < drainConfig.getAlarmSecondLevelUp() && value > drainConfig.getAlarmSecondLevelDown())) {
+                        sensorDataEntry.setLevel(2);
+                    } else if (value < drainConfig.getAlarmThirdLevelUp() && value > drainConfig.getAlarmThirdLevelDown()) {
+                        sensorDataEntry.setLevel(3);
+                    } else {
+                        sensorDataEntry.setLevel(0);
+                    }
                 }
 
                 if (sensorDataEntry.getLevel() > 0) {

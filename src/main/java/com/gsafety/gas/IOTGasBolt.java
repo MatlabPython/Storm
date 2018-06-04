@@ -5,7 +5,6 @@ import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Tuple;
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.codahale.metrics.Histogram;
@@ -28,7 +27,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
-
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -39,13 +37,16 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class IOTGasBolt extends BaseBasicBolt {
 
-    private Logger logger = LoggerFactory.getLogger(IOTGasBolt.class);
+    private Logger logger = LoggerFactory.getLogger(com.gsafety.gas.IOTGasBolt.class);
 
     private Map<String, String> statusConfigMap = new ConcurrentHashMap<>();//公共支持设备状态用
+
     private Map<String, GasFixation> configMap = new ConcurrentHashMap<>();
 
     private JedisCluster cluster;
+
     private Jedis jedis;
+
     private Histogram histogram;
 
     //kafka producer
@@ -67,7 +68,6 @@ public class IOTGasBolt extends BaseBasicBolt {
         proConf.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.StringSerializer");
         proConf.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, "org.apache.kafka.common.serialization.ByteArraySerializer");
         producer = new KafkaProducer<>(proConf);
-
         this.histogram = LatencyMetrics.latencyHistogram();
     }
 

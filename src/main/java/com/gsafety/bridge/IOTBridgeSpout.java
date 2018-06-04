@@ -21,9 +21,13 @@ import java.util.Properties;
  * Written on 17/8/31.
  */
 public class IOTBridgeSpout implements IRichSpout {
+
   private SpoutOutputCollector spoutOutputCollector;
+
   private static final Logger LOG = LoggerFactory.getLogger(IOTBridgeSpout.class);
+
   private Properties properties;
+
   /**
    * 消费者
    */
@@ -41,8 +45,8 @@ public class IOTBridgeSpout implements IRichSpout {
     return null;
   }
 
-
   public void open(Map map, TopologyContext topologyContext, SpoutOutputCollector spoutOutputCollector) {
+
     this.spoutOutputCollector = spoutOutputCollector;
     try {
       String[] topics = this.properties.getProperty("consumer.topic").split(",");
@@ -55,11 +59,13 @@ public class IOTBridgeSpout implements IRichSpout {
   }
 
   public void close() {
+
     if (this.consumer != null) {
       this.consumer.commitSync();
       this.consumer.close();
       LOG.info("KafkaConsumerSpout close!");
     }
+
   }
 
   public void activate() {

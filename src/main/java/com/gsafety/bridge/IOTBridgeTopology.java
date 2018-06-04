@@ -2,7 +2,6 @@ package com.gsafety.bridge;
 
 import backtype.storm.Config;
 import backtype.storm.LocalCluster;
-import backtype.storm.StormSubmitter;
 import backtype.storm.generated.AlreadyAliveException;
 import backtype.storm.generated.AuthorizationException;
 import backtype.storm.generated.InvalidTopologyException;
@@ -21,7 +20,7 @@ public class IOTBridgeTopology {
   public static void main(String[] args) throws InvalidTopologyException, AuthorizationException, AlreadyAliveException {
     Properties properties = new Properties();
     properties.put("bootstrap.servers", SystemConfig.get("KAFKA_BROKER_LIST"));
-    properties.put("group.id", "storm-kafka-bridge0");
+    properties.put("group.id", "storm-kafka-test12");
     //properties.put("group.id", "storm-kafka-pxl");
     //properties.put("auto.offset.reset", "earliest");
     properties.put("enable.auto.commit", "true");
@@ -38,7 +37,7 @@ public class IOTBridgeTopology {
     Config config = new Config();
 
     LocalCluster localCluster = new LocalCluster();
-    localCluster.submitTopology("IOTStream-local", config, topology);
+    localCluster.submitTopology("IOTStream-bridge0", config, topology);
 
 //    config.setNumWorkers(3);
 //    StormSubmitter.submitTopology("IOTStream-bridge", config, topology);

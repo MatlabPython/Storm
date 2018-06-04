@@ -5,7 +5,6 @@ import backtype.storm.topology.BasicOutputCollector;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.topology.base.BaseBasicBolt;
 import backtype.storm.tuple.Tuple;
-import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.codahale.metrics.Histogram;
@@ -26,7 +25,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
 
 import java.util.*;
@@ -40,7 +38,9 @@ public class IOTWaterBolt extends BaseBasicBolt {
     private Logger logger = LoggerFactory.getLogger(IOTWaterBolt.class);
 
     private Map<String, WaterFixation> configMap = new ConcurrentHashMap<>();
+
     private Map<String, String> statusConfigMap = new ConcurrentHashMap<>();//公共支持设备状态用
+
     private Map<String, List<ThresholdValueCommon>> handleConfigMap = new ConcurrentHashMap<>();
 
     private JedisCluster cluster;

@@ -22,8 +22,11 @@ import java.util.Properties;
  * Written on 17/8/31.
  */
 public class IOTWaterSpout implements IRichSpout {
+
   private SpoutOutputCollector spoutOutputCollector;
+
   private static final Logger LOG = LoggerFactory.getLogger(IOTWaterSpout.class);
+
   private Properties properties;
   /**
    * 消费者

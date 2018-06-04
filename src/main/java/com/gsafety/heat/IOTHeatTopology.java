@@ -8,10 +8,7 @@ import backtype.storm.generated.InvalidTopologyException;
 import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.gsafety.gas.IOTGasBolt;
-import com.gsafety.gas.IOTGasSpout;
 import com.gsafety.storm.SystemConfig;
-
 import java.util.Properties;
 
 /**

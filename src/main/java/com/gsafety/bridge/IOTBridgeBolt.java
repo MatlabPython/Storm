@@ -137,8 +137,8 @@ public class IOTBridgeBolt extends BaseBasicBolt {
         if (status == null) {//没有设备状态znode配置
 
             if ("PV".equals(sensorData.getDataType().toString())) {//PV类型
-                List<SensorDataEntry> sensorDataEntries = handleBurr(sensorId, sensorData);//毛刺处理
-                sensorDataEntries = balenceToZero(sensorDataEntries, sensorId);//平衡清零
+                List<SensorDataEntry> sensorDataEntries = handleBurr(sensorId, sensorData);//毛刺处理处理后的数据
+                sensorDataEntries = balenceToZero(sensorDataEntries, sensorId);//平衡清零处理后的数据
                 sendToRedis(sensorId, sensorDataEntries);//redis存最新一千条
                 int latency = (int) (new Date().getTime() - timestamp);
                 histogram.update(latency);
@@ -180,7 +180,7 @@ public class IOTBridgeBolt extends BaseBasicBolt {
     }
 
 
-    //拆包写回kafka
+    //拆包写回未清零的kafka,将sensorData转换成sensorDetail
     private void takeWriteBackToKafka(SensorData sensorData, String sensorId, String topic) {
         String location = sensorData.getLocation().toString();
         String terminal = sensorData.getTerminal().toString();
@@ -206,10 +206,39 @@ public class IOTBridgeBolt extends BaseBasicBolt {
             sensorDetail.setLevel(level);
             sensorDetail.setTime(time);
             sensorDetail.setValues(values);
-            producer.send(new ProducerRecord<>(topic + "-DR", sensorId, AvroUtil.serializer(sensorDetail)));
+            producer.send(new ProducerRecord<>(topic + "-DR", sensorId, AvroUtil.serializer(sensorDetail)));//未清零数据
         }
     }
+    //拆包写回预处理后的kafka,将sensorData转换成sensorDetail
+    private void writeBackToKafka(SensorData sensorData, String topic, String sensorId, List<SensorDataEntry> sensorDataEntries) {
 
+        String location = sensorData.getLocation().toString();
+        String terminal = sensorData.getTerminal().toString();
+        String sensor = sensorData.getSensor().toString();
+        long rtime = sensorData.getTime();
+        String sensorType = sensorData.getSensorType().toString();
+        String dataType = sensorData.getDataType().toString();
+        String monitoring = sensorData.getMonitoring().toString();
+
+        for (SensorDataEntry sensorDataEntry : sensorDataEntries) {
+            int level = sensorDataEntry.getLevel();
+            long time = sensorDataEntry.getTime();
+            List<Float> values = sensorDataEntry.getValues();
+            SensorDetail sensorDetail = new SensorDetail();
+            sensorDetail.setLocation(location);
+            sensorDetail.setTerminal(terminal);
+            sensorDetail.setSensor(sensor);
+            sensorDetail.setRtime(rtime);
+            sensorDetail.setSensorType(sensorType);
+            sensorDetail.setDataType(dataType);
+            sensorDetail.setMonitoring(monitoring);
+            sensorDetail.setLevel(level);
+            sensorDetail.setTime(time);
+            sensorDetail.setValues(values);
+            producer.send(new ProducerRecord<>(topic + "-PRO", sensorId, AvroUtil.serializer(sensorDetail)));//预处理后数据
+        }
+    }
+    //处理报警，如果有报警写入kafka供专项调用
     private void handleAlarm(String sensorId, List<SensorDataEntry> sensorDataEntries, SensorData sensorData) {
 
         BridgeDynamic bridgeConfig = configMap.get(sensorId);
@@ -220,11 +249,9 @@ public class IOTBridgeBolt extends BaseBasicBolt {
                 zreoValue = bridgeConfig.getZero();
             }
             for (SensorDataEntry sensorDataEntry : sensorDataEntries) {
-
                 if (bridgeConfig == null) {
                     break;
                 }
-
                 Float value = sensorDataEntry.getValues().get(0);
                 if (value > bridgeConfig.getAlarmFirstLevelUp() - zreoValue || value < bridgeConfig.getAlarmFirstLevelDown() - zreoValue) {
                     sensorDataEntry.setLevel(1);
@@ -249,11 +276,9 @@ public class IOTBridgeBolt extends BaseBasicBolt {
         if (dynamicConfig.getAlarmConfigs().get(0).getAlarmFirstLevelUp() == null) {
             return null;
         }
-
         if (dynamicConfig.getDynamic()) {
             return dynamicConfig.getAlarmConfigs().get(0);
         }
-
         long distance = sensorDataEntry.getTime() - TimeUtils.getTodayZeroTime();
         for (AlarmConfig alarmConfig : dynamicConfig.getAlarmConfigs()) {
             if (distance > alarmConfig.getStartTime() && distance < alarmConfig.getEndTime()) {
@@ -268,17 +293,12 @@ public class IOTBridgeBolt extends BaseBasicBolt {
     private Map<String, Long> cacheSensorTime = new HashMap<String, Long>();
 
     private void writeToAlarmTopic(String sensorId, SensorDataEntry sensorDataEntry, SensorData sensorData) {
-
         //BridgeDynamic bridgeConfig = configMap.get(sensorId);
         Long cacheTime = 10000L;//报警间隔
-
       /*if(bridgeConfig != null && bridgeConfig.getAlarmInterval() != 0){
           cacheTime = bridgeConfig.getAlarmInterval();
       }*/
-
         if (!cacheSensorTime.containsKey(sensorId)) {//如不过存在这个缓存一个 先发一条记录发送时间
-
-
             cacheSensorTime.put(sensorId, sensorDataEntry.getTime() + cacheTime);//把此条报警信息时间加上缓存起来
             List<Float> values = sensorDataEntry.getValues();
             SensorDetail sensorDetail = new SensorDetail();
@@ -390,7 +410,6 @@ public class IOTBridgeBolt extends BaseBasicBolt {
                 if (cachedSensorData.get(sensorId) != null && cachedSensorData.get(sensorId).size() > 0) {
                     Long burrTime = cacheHandleBurrTime.get(sensorId);//大于当前时间才证明缓存够了
                     if (entry.getTime() > burrTime) { //大于当前时间缓存够了
-
                         List<SensorDataEntry> list = cachedSensorData.get(sensorId);
                         //System.out.println("此处发生毛刺缓存缓存id--"+sensorId+"---大小"+list.size() +"数据时间"+entry.getTime()+"毛刺时间"+burrTime);
                         if ((list.get(list.size() - 1).getValues().get(0) < configMap.get(sensorId).getBurrMax()) && ((entry.getValues().get(0)) > configMap.get(sensorId).getBurrMin())) {//判断是否在毛刺区间 1s后数据正常的说明上疑似是真的需要修正、反之说明为正常数据
@@ -407,10 +426,8 @@ public class IOTBridgeBolt extends BaseBasicBolt {
                             //System.out.println("编号"+sensorId+"传感器毛刺疑似解除");
                             //System.out.println("观察数据最后一条数据"+list.get(list.size()-1).getValues().get(0)+"毛刺上区间"+configMap.get(sensorId).getBurrMax()+"毛刺下区间"+configMap.get(sensorId).getBurrMin()+"--时间--"+parseTimeToDate(entry.getTime())+"--"+entry.toString());
                         }
-
                         burrFlag.put(sensorId, false);// 回到最初的状态
                     } else {//小于当前时间证明没缓存够继续缓存
-
                         List<SensorDataEntry> list = cachedSensorData.get(sensorId);
                         list.add(entry);
                         cachedSensorData.put(sensorId, list);
@@ -433,7 +450,6 @@ public class IOTBridgeBolt extends BaseBasicBolt {
             cluster = JedisUtlis.getJedisCluster();
         }
         if (sensorDataEntries.size() > 0) {
-            // 过滤毛刺数据
             Map<String, Double> scoreMembers = new HashMap<>();
             for (SensorDataEntry sensorDataEntry : sensorDataEntries) {
                 //时间与服务器时间超过五分钟的数据不存入redis
@@ -461,35 +477,6 @@ public class IOTBridgeBolt extends BaseBasicBolt {
     private boolean isBadSensorData(SensorDataEntry sensorDataEntry) {
         return Math.abs(sensorDataEntry.getTime() - System.currentTimeMillis()) > SystemConfig.getInt("SENSOR_DATA_TIME_EXCEPTION");
     }
-
-    private void writeBackToKafka(SensorData sensorData, String topic, String sensorId, List<SensorDataEntry> sensorDataEntries) {
-        String location = sensorData.getLocation().toString();
-        String terminal = sensorData.getTerminal().toString();
-        String sensor = sensorData.getSensor().toString();
-        long rtime = sensorData.getTime();
-        String sensorType = sensorData.getSensorType().toString();
-        String dataType = sensorData.getDataType().toString();
-        String monitoring = sensorData.getMonitoring().toString();
-
-        for (SensorDataEntry sensorDataEntry : sensorDataEntries) {
-            int level = sensorDataEntry.getLevel();
-            long time = sensorDataEntry.getTime();
-            List<Float> values = sensorDataEntry.getValues();
-            SensorDetail sensorDetail = new SensorDetail();
-            sensorDetail.setLocation(location);
-            sensorDetail.setTerminal(terminal);
-            sensorDetail.setSensor(sensor);
-            sensorDetail.setRtime(rtime);
-            sensorDetail.setSensorType(sensorType);
-            sensorDetail.setDataType(dataType);
-            sensorDetail.setMonitoring(monitoring);
-            sensorDetail.setLevel(level);
-            sensorDetail.setTime(time);
-            sensorDetail.setValues(values);
-            producer.send(new ProducerRecord<>(topic + "-PRO", sensorId, AvroUtil.serializer(sensorDetail)));
-        }
-    }
-
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
@@ -529,7 +516,7 @@ public class IOTBridgeBolt extends BaseBasicBolt {
             } else {//毛刺数据
                 List<Float> values = entry.getValues();
                 //System.out.println("毛刺上区间"+burrMax+"毛刺下区间"+burrMin+"修正前---" + entry.getValues().get(0) +"---修正后—--"+value+"-传感器编号-"+sensorId+"--时间--"+parseTimeToDate(entry.getTime())+"--"+entry.toString());
-                values.set(0, value);
+                values.set(0, value);//如果是毛刺值就取平均值
             }
         }
 
@@ -563,6 +550,4 @@ public class IOTBridgeBolt extends BaseBasicBolt {
         }
         return null;
     }
-
-
 }

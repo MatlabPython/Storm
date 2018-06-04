@@ -25,7 +25,6 @@ import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCluster;
 
 import java.util.*;
@@ -41,7 +40,9 @@ public class IOTHeatBolt extends BaseBasicBolt {
     private Logger logger = LoggerFactory.getLogger(IOTHeatBolt.class);
 
     private Map<String, List<ThresholdValueCommon>> configMap = new ConcurrentHashMap<>();
+
     private Map<String, String> statusConfigMap = new ConcurrentHashMap<>();//公共支持设备状态用
+
     private JedisCluster cluster;
 
     private Histogram histogram;

@@ -9,7 +9,6 @@ import backtype.storm.generated.StormTopology;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import com.gsafety.storm.SystemConfig;
-
 import java.util.Properties;
 
 /**
@@ -39,7 +38,7 @@ public class IOTWaterTopology {
         localCluster.submitTopology("IOWater", config, topology);*/
 
         config.setNumWorkers(3);
-        StormSubmitter.submitTopology("IOTStream-water", config, topology);
+        StormSubmitter.submitTopology("IOTStream-water-test", config, topology);
 
     }
 }
